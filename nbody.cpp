@@ -2,10 +2,10 @@
 #include <stdio.h>
 #include <time.h>
 #include <math.h>
-#include "vector.h"
-#include "config.h"
-#include "planets.h"
-#include "compute.h"
+#include "vector.hpp"
+#include "config.hpp"
+#include "planets.hpp"
+#include "compute.hpp"
 
 // represents the objects in the system.  Global variables
 vector3 *hVel, *d_hVel;

@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <math.h>
-#include "vector.h"
-#include "config.h"
+#include "vector.hpp"
+#include "config.hpp"
 
 // compute: Updates the positions and locations of the objects in the system based on gravity.
 // Parameters: None
@@ -10,7 +10,8 @@
 void compute()
 {
 	// make an acceleration matrix which is NUMENTITIES squared in size;
-	int i, j, k;
+	int i,
+		j, k;
 	vector3 *values = (vector3 *)malloc(sizeof(vector3) * NUMENTITIES * NUMENTITIES);
 	vector3 **accels = (vector3 **)malloc(sizeof(vector3 *) * NUMENTITIES);
 	for (i = 0; i < NUMENTITIES; i++)
