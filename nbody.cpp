@@ -109,7 +109,7 @@ int main(int argc, char **argv)
 #ifdef DEBUG
 	printSystem(stdout);
 #endif
-	printf("We are now simulating the universe!");
+	printf("We are now simulating the universe!\n");
 	for (t_now = 0; t_now < DURATION; t_now += INTERVAL)
 	{
 		compute();
