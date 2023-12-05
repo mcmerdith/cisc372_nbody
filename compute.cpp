@@ -10,10 +10,13 @@
 void compute()
 {
 	// make an acceleration matrix which is NUMENTITIES squared in size;
-	int i,
-		j, k;
+
+	int i, j, k;
+	// 1d backing
 	vector3 *values = (vector3 *)malloc(sizeof(vector3) * NUMENTITIES * NUMENTITIES);
+	// simple pointer access for the 1d array
 	vector3 **accels = (vector3 **)malloc(sizeof(vector3 *) * NUMENTITIES);
+	// fill the array
 	for (i = 0; i < NUMENTITIES; i++)
 		accels[i] = &values[i * NUMENTITIES];
 	// first compute the pairwise accelerations.  Effect is on the first argument.
