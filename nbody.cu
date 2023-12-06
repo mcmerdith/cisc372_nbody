@@ -8,7 +8,7 @@
 #include "cuda_compute.hpp"
 
 // represents the objects in the system.  Global variables
-double3 *d_hVel, *d_hPos;
+vector3 *d_hVel, *d_hPos;
 vector3 *hVel, *hPos;
 double *mass, *d_mass;
 
@@ -83,7 +83,7 @@ void planetFill()
 // Side Effects: Fills count entries in our system starting at index start (0 based)
 void randomFill(int start, int count)
 {
-	int i, j, c = start;
+	int i, j;
 	for (i = start; i < start + count; i++)
 	{
 		for (j = 0; j < 3; j++)
@@ -135,13 +135,17 @@ int main(int argc, char **argv)
 	printf("We are now simulating the universe!\n");
 
 	// send data to device
-	cudaMemcpy(d_hPos, hPos, NUMENTITIES, cudaMemcpyHostToDevice);
-	cudaMemcpy(d_hVel, hVel, NUMENTITIES, cudaMemcpyHostToDevice);
-	cudaMemcpy(d_mass, mass, NUMENTITIES, cudaMemcpyHostToDevice);
+	auto hPosCpy = cudaMemcpy(d_hPos, hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
+	auto hVelCpy = cudaMemcpy(d_hVel, hVel, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
+	auto massCpy = cudaMemcpy(d_mass, mass, sizeof(double), cudaMemcpyHostToDevice);
 
-	double3 **accelerations, *accel_sum;
-	cudaMalloc(&accelerations, sizeof(double3) * NUMENTITIES * NUMENTITIES);
-	cudaMalloc(&accel_sum, sizeof(double3) * NUMENTITIES);
+	printf("MEMCPY %d %d %d\n", hPosCpy, hVelCpy, massCpy);
+	fflush(stdout);
+
+	vector3 *accelerations,
+		*accel_sum;
+	cudaMalloc(&accelerations, sizeof(vector3) * NUMENTITIES * NUMENTITIES);
+	cudaMalloc(&accel_sum, sizeof(vector3) * NUMENTITIES);
 
 	dim3 blockSize(32, 32);
 	dim3 nBlocks((NUMENTITIES + blockSize.x - 1) / blockSize.x, (NUMENTITIES + blockSize.y - 1) / blockSize.y);
@@ -149,13 +153,13 @@ int main(int argc, char **argv)
 	for (t_now = 0; t_now < DURATION; t_now += INTERVAL)
 	{
 		compute_accelerations<<<nBlocks, blockSize>>>(accelerations, d_hPos, d_mass);
-		sum_matrix<<<nBlocks, blockSize>>>(accel_sum, accelerations);
-		update_positions<<<(NUMENTITIES + 1023) / 1024, 1024>>>(accel_sum, d_hVel, d_hPos);
+		sum_matrix<<<NUMENTITIES, 1>>>(accel_sum, accelerations);
+		update_positions<<<NUMENTITIES, 1>>>(accel_sum, d_hVel, d_hPos);
 	}
 
-	cudaMemcpy(hPos, d_hPos, NUMENTITIES, cudaMemcpyDeviceToHost);
-	cudaMemcpy(hVel, d_hVel, NUMENTITIES, cudaMemcpyDeviceToHost);
-	cudaMemcpy(mass, d_mass, NUMENTITIES, cudaMemcpyDeviceToHost);
+	cudaMemcpy(hPos, d_hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
+	cudaMemcpy(hVel, d_hVel, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
+	cudaMemcpy(mass, d_mass, sizeof(double), cudaMemcpyDeviceToHost);
 
 	clock_t t1 = clock() - t0;
 #ifdef DEBUG

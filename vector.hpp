@@ -8,8 +8,8 @@ typedef double vector3[3];
         vector[1] = b;               \
         vector[2] = c;               \
     }
-extern vector3 *hVel, *d_hVel;
-extern vector3 *hPos, *d_hPos;
+extern vector3 *hVel;
+extern vector3 *hPos;
 extern double *mass;
 
 #endif
