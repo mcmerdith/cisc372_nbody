@@ -137,7 +137,7 @@ int main(int argc, char **argv)
 	// send data to device
 	cudaMemcpy(d_hPos, hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
 	cudaMemcpy(d_hVel, hVel, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
-	cudaMemcpy(d_mass, mass, sizeof(double), cudaMemcpyHostToDevice);
+	cudaMemcpy(d_mass, mass, sizeof(double) * NUMENTITIES, cudaMemcpyHostToDevice);
 
 	vector3 *accelerations, *l_accelerations = (vector3 *)calloc(NUMENTITIES * NUMENTITIES, sizeof(vector3)),
 							*accel_sum, *l_accel_sum = (vector3 *)calloc(NUMENTITIES, sizeof(vector3));
@@ -152,17 +152,17 @@ int main(int argc, char **argv)
 		compute_accelerations<<<dim3(NUMENTITIES, NUMENTITIES), 1>>>(accelerations, d_hPos, d_mass);
 		sum_matrix<<<NUMENTITIES, 1>>>(accel_sum, accelerations);
 
-		cudaMemcpy(l_accelerations, accelerations, sizeof(vector3) * NUMENTITIES * NUMENTITIES, cudaMemcpyDeviceToHost);
-		cudaMemcpy(l_accel_sum, accel_sum, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
-		for (int i = 0; i < NUMENTITIES; i++)
-		{
-			printf("%d  ", i);
-			for (int j = 0; j < NUMENTITIES; j++)
-			{
-				printf("%.0f ", *l_accelerations[(i * NUMENTITIES) + j]);
-			}
-			printf("\nSUM %f\n", *l_accel_sum[i]);
-		}
+		// cudaMemcpy(l_accelerations, accelerations, sizeof(vector3) * NUMENTITIES * NUMENTITIES, cudaMemcpyDeviceToHost);
+		// cudaMemcpy(l_accel_sum, accel_sum, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
+		// for (int i = 0; i < NUMENTITIES; i++)
+		// {
+		// 	printf("%d  ", i);
+		// 	for (int j = 0; j < NUMENTITIES; j++)
+		// 	{
+		// 		printf("%.0f ", *l_accelerations[(i * NUMENTITIES) + j]);
+		// 	}
+		// 	printf("\nSUM %f\n", *l_accel_sum[i]);
+		// }
 
 		update_positions<<<NUMENTITIES, 1>>>(accel_sum, d_hVel, d_hPos);
 	}
