@@ -84,14 +84,14 @@ void printSystem(FILE *handle)
 		fprintf(handle, "pos=(");
 		for (j = 0; j < 3; j++)
 		{
-			fprintf(handle, "%lf,", hPos[i][j]);
+			fprintf(handle, "%.1lf,", hPos[i][j]);
 		}
 		printf("),v=(");
 		for (j = 0; j < 3; j++)
 		{
-			fprintf(handle, "%lf,", hVel[i][j]);
+			fprintf(handle, "%.1lf,", hVel[i][j]);
 		}
-		fprintf(handle, "),m=%lf\n", mass[i]);
+		fprintf(handle, "),m=%.1lf\n", mass[i]);
 	}
 }
 
@@ -110,7 +110,7 @@ int main(int argc, char **argv)
 #endif
 	printf("We are now simulating the universe!\n");
 
-	compute_init();
+	compute_prepare();
 
 	for (t_now = 0; t_now < DURATION; t_now += INTERVAL)
 	{

@@ -20,5 +20,5 @@
 
 #define INDEX(i, j) ((i * NUMENTITIES) + j)
 
-void compute_init();
+void compute_prepare();
 void compute_complete();

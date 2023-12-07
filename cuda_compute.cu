@@ -18,45 +18,7 @@ dim3 sumBlockCount((NUMENTITIES + sumBlockSize.x - 1) / sumBlockSize.x);
 dim3 updateBlockSize(1024);
 dim3 updateBlockCount((NUMENTITIES + updateBlockSize.x - 1) / updateBlockSize.x);
 
-void compute_prepare()
-{
-    // allocate the buffers to hold computation data between runs
-    cudaMalloc(&accelerations, sizeof(vector3) * NUMENTITIES * NUMENTITIES);
-    cudaMalloc(&accel_sum, sizeof(vector3) * NUMENTITIES);
-
-    // allocate device copies of the inputs and outputs
-    cudaMalloc(&d_hVel, sizeof(vector3) * NUMENTITIES);
-    cudaMalloc(&d_hPos, sizeof(vector3) * NUMENTITIES);
-    cudaMalloc(&d_mass, sizeof(double) * NUMENTITIES);
-
-    // copy the host data over to the device
-    cudaMemcpy(d_hPos, hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_hVel, hVel, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_mass, mass, sizeof(double) * NUMENTITIES, cudaMemcpyHostToDevice);
-}
-
-void compute()
-{
-    compute_accelerations<<<computeBlockCount, computeBlockSize>>>(accelerations, d_hPos, d_mass);
-    sum_matrix<<<sumBlockCount, sumBlockSize>>>(accel_sum, accelerations);
-    update_positions<<<updateBlockCount, updateBlockSize>>>(accel_sum, d_hVel, d_hPos);
-}
-
-void compute_complete()
-{
-    // copy the device data back to the host
-    cudaMemcpy(hPos, d_hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
-    cudaMemcpy(hVel, d_hVel, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
-
-    // free the computation data buffers
-    cudaFree(accelerations);
-    cudaFree(accel_sum);
-
-    // free the device copies of inputs and outputs
-    cudaFree(d_hVel);
-    cudaFree(d_hPos);
-    cudaFree(d_mass);
-}
+/* KERNELS */
 
 __global__ void compute_accelerations(vector3 *accelerations, vector3 *hPos, double *mass)
 {
@@ -114,4 +76,46 @@ __global__ void update_positions(vector3 *accel_sum, vector3 *hVel, vector3 *hPo
         hVel[i][k] = accel_sum[i][k] * INTERVAL;
         hPos[i][k] += hVel[i][k] * INTERVAL;
     }
+}
+
+/* PUBLIC FUNCTIONS */
+
+void compute_prepare()
+{
+    // allocate the buffers to hold computation data between runs
+    cudaMalloc(&accelerations, sizeof(vector3) * NUMENTITIES * NUMENTITIES);
+    cudaMalloc(&accel_sum, sizeof(vector3) * NUMENTITIES);
+
+    // allocate device copies of the inputs and outputs
+    cudaMalloc(&d_hVel, sizeof(vector3) * NUMENTITIES);
+    cudaMalloc(&d_hPos, sizeof(vector3) * NUMENTITIES);
+    cudaMalloc(&d_mass, sizeof(double) * NUMENTITIES);
+
+    // copy the host data over to the device
+    cudaMemcpy(d_hPos, hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_hVel, hVel, sizeof(vector3) * NUMENTITIES, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_mass, mass, sizeof(double) * NUMENTITIES, cudaMemcpyHostToDevice);
+}
+
+void compute()
+{
+    compute_accelerations<<<computeBlockCount, computeBlockSize>>>(accelerations, d_hPos, d_mass);
+    sum_matrix<<<sumBlockCount, sumBlockSize>>>(accel_sum, accelerations);
+    update_positions<<<updateBlockCount, updateBlockSize>>>(accel_sum, d_hVel, d_hPos);
+}
+
+void compute_complete()
+{
+    // copy the device data back to the host
+    cudaMemcpy(hPos, d_hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
+    cudaMemcpy(hVel, d_hVel, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
+
+    // free the computation data buffers
+    cudaFree(accelerations);
+    cudaFree(accel_sum);
+
+    // free the device copies of inputs and outputs
+    cudaFree(d_hVel);
+    cudaFree(d_hPos);
+    cudaFree(d_mass);
 }
