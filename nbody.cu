@@ -158,7 +158,7 @@ int main(int argc, char **argv)
 		{
 			for (int j = 0; j < NUMENTITIES; j++)
 			{
-				printf("%f\t", *l_accelerations[(i * NUMENTITIES) + j]);
+				printf("%f.2 ", *l_accelerations[(i * NUMENTITIES) + j]);
 			}
 			printf("= SUM %f\n", *l_accel_sum[i]);
 		}
