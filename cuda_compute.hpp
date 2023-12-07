@@ -1,4 +1,5 @@
 #pragma once
+#include "compute.hpp"
 #include "vector.hpp"
 
 #define FILL_CUDA_VEC(vector, xv, yv, zv) \
@@ -19,6 +20,5 @@
 
 #define INDEX(i, j) ((i * NUMENTITIES) + j)
 
-__global__ void compute_accelerations(vector3 *accelerations, vector3 *hPos, double *mass);
-__global__ void sum_matrix(vector3 *accel_sum, vector3 *accelerations);
-__global__ void update_positions(vector3 *accel_sum, vector3 *hVel, vector3 *hPos);
+void compute_init();
+void compute_complete();
