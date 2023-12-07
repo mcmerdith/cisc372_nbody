@@ -143,14 +143,14 @@ int main(int argc, char **argv)
 	cudaMalloc(&accelerations, sizeof(vector3) * NUMENTITIES * NUMENTITIES);
 	cudaMalloc(&accel_sum, sizeof(vector3) * NUMENTITIES);
 
-	// dim3 blockSize(32, 32);
-	// dim3 nBlocks((NUMENTITIES + blockSize.x - 1) / blockSize.x, (NUMENTITIES + blockSize.y - 1) / blockSize.y);
+	dim3 blockSize(32, 32);
+	dim3 nBlocks((NUMENTITIES + blockSize.x - 1) / blockSize.x, (NUMENTITIES + blockSize.y - 1) / blockSize.y);
 
 	for (t_now = 0; t_now < DURATION; t_now += INTERVAL)
 	{
-		compute_accelerations<<<dim3(NUMENTITIES, NUMENTITIES), 1>>>(accelerations, d_hPos, d_mass);
-		sum_matrix<<<NUMENTITIES, 1>>>(accel_sum, accelerations);
-		update_positions<<<NUMENTITIES, 1>>>(accel_sum, d_hVel, d_hPos);
+		compute_accelerations<<<nBlocks, blockSize>>>(accelerations, d_hPos, d_mass);
+		sum_matrix<<<(NUMENTITIES + 1023) / 1024, 1024>>>(accel_sum, accelerations);
+		update_positions<<<(NUMENTITIES + 1023) / 1024, 1024>>>(accel_sum, d_hVel, d_hPos);
 	}
 
 	cudaMemcpy(hPos, d_hPos, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
