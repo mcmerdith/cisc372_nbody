@@ -17,7 +17,7 @@
 
 #define SQUARE(x) (x * x)
 
-#define INDEX(i, j) i *NUMENTITIES + j
+#define INDEX(i, j) ((i * NUMENTITIES) + j)
 
 __global__ void compute_accelerations(vector3 *accelerations, vector3 *hPos, double *mass);
 __global__ void sum_matrix(vector3 *accel_sum, vector3 *accelerations);

@@ -4,7 +4,8 @@
 __global__ void compute_accelerations(vector3 *accelerations, vector3 *hPos, double *mass)
 {
     // make an acceleration matrix which is NUMENTITIES squared in size;
-    int i = blockIdx.x * blockDim.x + threadIdx.x, j = blockIdx.y * blockDim.y + threadIdx.y, k;
+    // int i = blockIdx.x * blockDim.x + threadIdx.x, j = blockIdx.y * blockDim.y + threadIdx.y, k;
+    int i = blockIdx.x, j = blockIdx.y, k;
     // only work inside the grid
     if (i >= NUMENTITIES || j >= NUMENTITIES)
         return;
