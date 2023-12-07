@@ -1,4 +1,4 @@
-FLAGS= -g --keep -lineinfo -DDEBUG
+FLAGS= -g -lineinfo -DDEBUG
 LIBS= -lm
 ALWAYS_REBUILD=makefile
 
