@@ -156,11 +156,12 @@ int main(int argc, char **argv)
 		cudaMemcpy(l_accel_sum, accel_sum, sizeof(vector3) * NUMENTITIES, cudaMemcpyDeviceToHost);
 		for (int i = 0; i < NUMENTITIES; i++)
 		{
+			printf("%d  ", i);
 			for (int j = 0; j < NUMENTITIES; j++)
 			{
-				printf("%.2f ", *l_accelerations[(i * NUMENTITIES) + j]);
+				printf("%.0f ", *l_accelerations[(i * NUMENTITIES) + j]);
 			}
-			printf("= SUM %f\n", *l_accel_sum[i]);
+			printf("\nSUM %f\n", *l_accel_sum[i]);
 		}
 
 		update_positions<<<NUMENTITIES, 1>>>(accel_sum, d_hVel, d_hPos);
