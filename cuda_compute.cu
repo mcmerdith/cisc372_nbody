@@ -1,7 +1,12 @@
 #include "cuda_compute.hpp"
 #include "config.hpp"
 
+/* local computation variables */
+
 vector3 *accelerations, *accel_sum;
+double magnitude_sq;
+
+/* device copies of input/output variables */
 
 extern vector3 *hVel, *hPos;
 vector3 *d_hVel, *d_hPos;
@@ -9,21 +14,27 @@ vector3 *d_hVel, *d_hPos;
 extern double *mass;
 double *d_mass;
 
-dim3 computeBlockSize(32, 32);
-dim3 computeBlockCount((NUMENTITIES + computeBlockSize.x - 1) / computeBlockSize.x, (NUMENTITIES + computeBlockSize.y - 1) / computeBlockSize.y);
+/* KERNEL DIMENSIONS */
 
-dim3 sumBlockSize(1024);
-dim3 sumBlockCount((NUMENTITIES + sumBlockSize.x - 1) / sumBlockSize.x);
+// dim3 computeBlockSize(32, 32);
+dim3 computeBlockSize(18, 18, 3);
+dim3 computeBlockCount(CEIL_DIVIDE(NUMENTITIES, DIM_SIZE(computeBlockSize)), CEIL_DIVIDE(NUMENTITIES, DIM_SIZE(computeBlockSize)));
 
-dim3 updateBlockSize(1024);
-dim3 updateBlockCount((NUMENTITIES + updateBlockSize.x - 1) / updateBlockSize.x);
+// dim3 sumBlockSize(341, 3);
+dim3 sumBlockSize(18, 18, 3);
+dim3 sumBlockCount(CEIL_DIVIDE(NUMENTITIES, DIM_SIZE(sumBlockSize)), CEIL_DIVIDE(NUMENTITIES, DIM_SIZE(sumBlockSize)));
+
+dim3 updateBlockSize(341, 1, 3);
+dim3 updateBlockCount(CEIL_DIVIDE(NUMENTITIES, DIM_SIZE(updateBlockSize)));
 
 /* KERNELS */
 
-__global__ void compute_accelerations(vector3 *accelerations, vector3 *hPos, double *mass)
+__global__ void compute_accelerations()
 {
     // make an acceleration matrix which is NUMENTITIES squared in size;
-    int i = blockIdx.x * blockDim.x + threadIdx.x, j = blockIdx.y * blockDim.y + threadIdx.y, k;
+    int i = blockIdx.x * blockDim.x + threadIdx.x,
+        j = blockIdx.y * blockDim.y + threadIdx.y,
+        k = threadIdx.z;
     // only work inside the grid
     if (i >= NUMENTITIES || j >= NUMENTITIES)
         return;
@@ -31,51 +42,60 @@ __global__ void compute_accelerations(vector3 *accelerations, vector3 *hPos, dou
     // first compute the pairwise accelerations.  Effect is on the first argument.
     if (i == j)
     {
-        FILL_VECTOR(accelerations[INDEX(i, j)], 0, 0, 0);
+        accelerations[INDEX(i, j)][k] = 0;
     }
     else
     {
-        vector3 distance;
-        double magnitude_sq = 0;
-        for (k = 0; k < 3; k++)
-        {
-            distance[k] = hPos[i][k] - hPos[j][k];
-            magnitude_sq += SQUARE(distance[k]);
-        }
-        double magnitude = sqrt(magnitude_sq);
-        double accelmag = -1 * GRAV_CONSTANT * mass[j] / magnitude_sq;
-        FILL_VECTOR(accelerations[INDEX(i, j)],
-                    accelmag * distance[0] / magnitude,
-                    accelmag * distance[1] / magnitude,
-                    accelmag * distance[2] / magnitude);
+        // vector3 distance;
+        double distance = hPos[i][k] - hPos[j][k];
+
+        // calculate magnitude components
+        __shared__ double magnitude_sq[blockDim.x][blockDim.y];
+        double *l_mag_sq = &magnitude_sq[threadIdx.x][threadIdx.y];
+        atomicAdd(l_mag_sq, SQUARE(distance));
+
+        // All threads must compute their component of magnitude sq before continuing
+        __syncthreads();
+
+        // calculate magnitudes
+        double magnitude = sqrt(*l_mag_sq);
+        double accelmag = -1 * GRAV_CONSTANT * mass[j] / (*l_mag_sq);
+
+        accelerations[INDEX(i, j)][k] = accelmag * distance / magnitude;
     }
 }
 
-__global__ void sum_matrix(vector3 *accel_sum, vector3 *accelerations)
+__global__ void sum_matrix()
 {
     // sum up the rows of our matrix to get effect on each entity, then update velocity and position.
-    int i = blockIdx.x * blockDim.x + threadIdx.x, j, k;
-    if (i >= NUMENTITIES)
+    int i = blockIdx.x * blockDim.x + threadIdx.x,
+        j = blockIdx.y * blockDim.y + threadIdx.y,
+        k = threadIdx.z;
+
+    if (i >= NUMENTITIES || j >= NUMENTITIES)
         return;
 
-    for (j = 0; j < NUMENTITIES; j++)
-        for (k = 0; k < 3; k++)
-            accel_sum[i][k] += accelerations[INDEX(i, j)][k];
+    // for (j = 0; j < NUMENTITIES; j++)
+    //     for (k = 0; k < 3; k++)
+    // accel_sum[i][k] += accelerations[INDEX(i, j)][k];
+    atomicAdd(&accel_sum[i][k], accelerations[INDEX(i, j)][k]);
 }
 
-__global__ void update_positions(vector3 *accel_sum, vector3 *hVel, vector3 *hPos)
+__global__ void update_positions()
 {
     // compute the new velocity based on the acceleration and time interval
     // compute the new position based on the velocity and time interval
-    int i = blockIdx.x * blockDim.x + threadIdx.x, k;
+    int i = blockIdx.x * blockDim.x + threadIdx.x,
+        k = threadIdx.z;
+
     if (i >= NUMENTITIES)
         return;
 
-    for (k = 0; k < 3; k++)
-    {
-        hVel[i][k] = accel_sum[i][k] * INTERVAL;
-        hPos[i][k] += hVel[i][k] * INTERVAL;
-    }
+    // for (k = 0; k < 3; k++)
+    // {
+    hVel[i][k] = accel_sum[i][k] * INTERVAL;
+    hPos[i][k] += hVel[i][k] * INTERVAL;
+    // }
 }
 
 /* PUBLIC FUNCTIONS */
@@ -99,9 +119,11 @@ void compute_prepare()
 
 void compute()
 {
-    compute_accelerations<<<computeBlockCount, computeBlockSize>>>(accelerations, d_hPos, d_mass);
-    sum_matrix<<<sumBlockCount, sumBlockSize>>>(accel_sum, accelerations);
-    update_positions<<<updateBlockCount, updateBlockSize>>>(accel_sum, d_hVel, d_hPos);
+    // allocates shared memory for a matrix of magnitudes for each pair of entities calculated
+    compute_accelerations<<<computeBlockCount, computeBlockSize, sizeof(double) * computeBlockSize.x * computeBlockSize.y>>>();
+    // TODO use reduction within shared memory to improve performance
+    sum_matrix<<<sumBlockCount, sumBlockSize>>>();
+    update_positions<<<updateBlockCount, updateBlockSize>>>();
 }
 
 void compute_complete()
