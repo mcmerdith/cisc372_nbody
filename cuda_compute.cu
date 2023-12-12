@@ -16,14 +16,14 @@ double *d_mass;
 
 /* KERNEL DIMENSIONS */
 
-dim3 computeBlockSize(32, 32);
-dim3 computeBlockCount(CEIL_DIVIDE(NUMENTITIES, computeBlockSize.x), CEIL_DIVIDE(NUMENTITIES, computeBlockSize.y));
+const dim3 computeBlockSize(32, 32);
+const dim3 computeBlockCount(CEIL_DIVIDE(NUMENTITIES, computeBlockSize.x), CEIL_DIVIDE(NUMENTITIES, computeBlockSize.y));
 
-dim3 sumBlockSize(1, 341, 3);
-dim3 sumBlockCount(1, CEIL_DIVIDE(NUMENTITIES, sumBlockSize.y));
+const dim3 sumBlockSize(341, 1, 3);
+const dim3 sumBlockCount(CEIL_DIVIDE(NUMENTITIES, sumBlockSize.x));
 
-dim3 updateBlockSize(341, 1, 3);
-dim3 updateBlockCount(CEIL_DIVIDE(NUMENTITIES, updateBlockSize.x));
+const dim3 updateBlockSize(341, 1, 3);
+const dim3 updateBlockCount(CEIL_DIVIDE(NUMENTITIES, updateBlockSize.x));
 
 /* KERNELS */
 
@@ -41,8 +41,7 @@ __global__ void compute_accelerations(vector3 **d_accels, vector3 *d_hPos, doubl
     // first compute the pairwise accelerations.  Effect is on the first argument.
     if (i == j)
     {
-        for (k = 0; k < 3; k++)
-            d_accels[i][j][k] = 0;
+        FILL_VECTOR(d_accels[i][j], 0, 0, 0);
     }
     else
     {
@@ -50,24 +49,23 @@ __global__ void compute_accelerations(vector3 **d_accels, vector3 *d_hPos, doubl
         for (k = 0; k < 3; k++)
             distance[k] = d_hPos[i][k] - d_hPos[j][k];
 
-        double magnitude_sq = 0;
-
-        for (k = 0; k < 3; k++)
-            magnitude_sq += SQUARE(distance[k]);
+        double magnitude_sq = SQUARE(distance[0]) + SQUARE(distance[1]) + SQUARE(distance[2]);
 
         // calculate magnaitudes
         double magnitude = sqrt(magnitude_sq);
         double accelmag = -1 * GRAV_CONSTANT * d_mass[j] / (magnitude_sq);
 
-        for (k = 0; k < 3; k++)
-            d_accels[i][j][k] = accelmag * distance[k] / magnitude;
+        FILL_VECTOR(d_accels[i][j],
+                    accelmag * distance[0] / magnitude,
+                    accelmag * distance[1] / magnitude,
+                    accelmag * distance[2] / magnitude)
     }
 }
 
 __global__ void sum_matrix(vector3 *d_accel_sum, vector3 **d_accels)
 {
     // sum up the rows of our matrix to get effect on each entity, then update velocity and position.
-    int i = blockIdx.y * blockDim.y + threadIdx.y,
+    int i = blockIdx.x * blockDim.x + threadIdx.x,
         k = threadIdx.z;
 
     if (i >= NUMENTITIES)
@@ -106,8 +104,8 @@ void compute_prepare()
     cudaMalloc(&accels, sizeof(vector3 *) * NUMENTITIES);
     cudaMalloc(&accel_sum, sizeof(vector3) * NUMENTITIES);
 
+    // map the 1-d array to the 2-d array
     map_accel_values<<<1, 1>>>(accel_values, accels);
-    cudaDeviceSynchronize();
 
     // allocate device copies of the inputs and outputs
     cudaMalloc(&d_hVel, sizeof(vector3) * NUMENTITIES);
