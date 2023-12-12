@@ -1,4 +1,4 @@
-FLAGS= -g -lineinfo -DDEBUG
+FLAGS= -g -lineinfo -arch=compute_60 -DDEBUG
 LIBS= -lm
 ALWAYS_REBUILD=makefile
 
